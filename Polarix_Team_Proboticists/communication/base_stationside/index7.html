@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mars Rover Command</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<script src="static/tailwind.js"></script>
+<link href="static/fonts.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+<style>
+:root{
+  --bg:#0b0c10;
+  --glass:rgba(31,40,51,.9);
+  --accent:#66fcf1;
+  --accent-dim:#45a29e;
+  --text:#c5c6c7;
+}
+body{
+  background:radial-gradient(circle at 50% 30%,#1a1a2e 0%,#000 100%);
+  color:var(--text);
+  font-family:'Courier New',monospace;
+  min-height:100vh;
+}
+.widget-panel{
+  background:var(--glass);
+  backdrop-filter:blur(8px);
+  border:1px solid var(--accent-dim);
+  border-radius:8px;
+}
+video{
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  background:#000;
+}
+.camera-frame{
+  position:relative;
+  border:1px solid #333;
+  background:#000;
+}
+.camera-frame:hover{border-color:var(--accent);}
+.cam-controls{
+  position:absolute;
+  bottom:8px; right:8px;
+  display:flex; gap:6px;
+}
+.ctrl-btn{
+  width:32px;height:32px;
+  background:#000;
+  border:1px solid var(--accent);
+  color:var(--accent);
+}
+.ctrl-btn:hover{
+  background:var(--accent);
+  color:#000;
+}
+.record-dot{
+  position:absolute;
+  top:8px;right:8px;
+  width:10px;height:10px;
+  background:#ef4444;
+  border-radius:50%;
+  display:none;
+}
+.rssi-bar{background:#333;}
+.rssi-active{background:var(--accent);box-shadow:0 0 6px var(--accent);}
+</style>
+</head>
+
+<body class="p-4 lg:p-6">
+<div class="max-w-7xl mx-auto">
+
+<!-- ================= HEADER ================= -->
+<header class="flex justify-between items-center mb-6 pb-4 border-b border-gray-700">
+
+  <div class="flex items-center gap-4">
+    <h1 class="text-3xl font-bold text-white uppercase tracking-widest">
+      Mars Rover <span class="text-cyan-400">Command</span>
+    </h1>
+
+    <!-- ONLINE / OFFLINE -->
+    <div class="flex items-center px-3 py-1 border border-gray-600 bg-black/50">
+      <div id="status-light"
+           class="w-2 h-2 bg-red-500 rounded-full mr-2 animate-pulse"></div>
+      <span id="status-text"
+            class="text-xs font-bold tracking-widest text-gray-300">
+        OFFLINE
+      </span>
+    </div>
+  </div>
+
+  <!-- NAVIGATION -->
+  <a href="/science" target="_blank"
+     class="px-4 py-2 border border-cyan-400 text-cyan-400
+            text-xs font-bold tracking-widest
+            hover:bg-cyan-400 hover:text-black transition">
+    SCIENCE DATA
+  </a>
+</header>
+
+<!-- ================= MAIN GRID ================= -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+<!-- ================= VIDEO PANEL ================= -->
+<div class="lg:col-span-2 widget-panel p-2 h-[600px]">
+  <div class="grid grid-cols-2 grid-rows-2 gap-2 h-full">
+
+    <!-- CAM 1 -->
+    <div class="camera-frame">
+      <video id="video-cam1" autoplay muted playsinline></video>
+      <div class="cam-controls">
+        <button class="ctrl-btn" onclick="takeSnapshot('video-cam1')"><i class="fa fa-camera"></i></button>
+        <button class="ctrl-btn" onclick="toggleRecording('video-cam1','rec-dot-1')"><i class="fa fa-video"></i></button>
+      </div>
+      <div class="record-dot" id="rec-dot-1"></div>
+    </div>
+
+    <!-- CAM 2 -->
+    <div class="camera-frame">
+      <video id="video-cam2" autoplay muted playsinline></video>
+      <div class="cam-controls">
+        <button class="ctrl-btn" onclick="takeSnapshot('video-cam2')"><i class="fa fa-camera"></i></button>
+        <button class="ctrl-btn" onclick="toggleRecording('video-cam2','rec-dot-2')"><i class="fa fa-video"></i></button>
+      </div>
+      <div class="record-dot" id="rec-dot-2"></div>
+    </div>
+
+    <!-- CAM 3 -->
+    <div class="camera-frame">
+      <video id="video-cam3" autoplay muted playsinline></video>
+      <div class="cam-controls">
+        <button class="ctrl-btn" onclick="takeSnapshot('video-cam3')"><i class="fa fa-camera"></i></button>
+        <button class="ctrl-btn" onclick="toggleRecording('video-cam3','rec-dot-3')"><i class="fa fa-video"></i></button>
+      </div>
+      <div class="record-dot" id="rec-dot-3"></div>
+    </div>
+
+    <!-- CAM 4 -->
+    <div class="camera-frame">
+      <video id="video-cam4" autoplay muted playsinline></video>
+      <div class="cam-controls">
+        <button class="ctrl-btn" onclick="takeSnapshot('video-cam4')"><i class="fa fa-camera"></i></button>
+        <button class="ctrl-btn" onclick="toggleRecording('video-cam4','rec-dot-4')"><i class="fa fa-video"></i></button>
+      </div>
+      <div class="record-dot" id="rec-dot-4"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ================= SIDEBAR ================= -->
+<div class="flex flex-col gap-4">
+
+<!-- POWER -->
+<div class="widget-panel p-4">
+  <div class="text-xs text-gray-400 mb-2">SYSTEM POWER</div>
+  <div id="battery-percentage" class="text-2xl font-bold">--%</div>
+  <div class="h-2 bg-gray-800 mt-2">
+    <div id="battery-level" class="h-full bg-cyan-400" style="width:0%"></div>
+  </div>
+</div>
+
+<!-- COMM -->
+<div class="widget-panel p-4">
+  <div class="text-xs text-gray-400 mb-2">COMMUNICATION</div>
+  <div class="flex justify-between items-end">
+    <div>
+      <div id="rssi-value" class="text-2xl font-bold">--</div>
+      <div class="text-xs text-gray-500">dBm</div>
+    </div>
+    <div class="flex gap-1 h-8 items-end">
+      <div id="rssi-bar-1" class="rssi-bar w-2 h-1/4"></div>
+      <div id="rssi-bar-2" class="rssi-bar w-2 h-2/4"></div>
+      <div id="rssi-bar-3" class="rssi-bar w-2 h-3/4"></div>
+      <div id="rssi-bar-4" class="rssi-bar w-2 h-full"></div>
+    </div>
+  </div>
+  <div id="link-quality-value" class="text-xs text-cyan-400 mt-2">-- ms</div>
+</div>
+
+<!-- TEMP -->
+<div class="widget-panel p-4">
+  <div class="text-xs text-gray-400 mb-2">CORE TEMP</div>
+  <div class="text-3xl font-bold"><span id="temperature-value">--</span>°C</div>
+</div>
+
+<!-- GAMEPAD -->
+<div class="widget-panel p-4 mt-4">
+  <div class="text-xs text-gray-400 mb-2">DRIVE COMMANDS</div>
+  <div class="grid grid-cols-2 gap-4 text-center">
+    <div>
+      <div class="text-xs text-gray-500">LINEAR (V)</div>
+      <div class="text-xl font-bold text-cyan-400">
+        <span id="val-v">0.00</span> <span class="text-xs">m/s</span>
+      </div>
+    </div>
+    <div>
+      <div class="text-xs text-gray-500">ANGULAR (W)</div>
+      <div class="text-xl font-bold text-red-400">
+        <span id="val-w">0.00</span> <span class="text-xs">rad/s</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="widget-panel p-4 mt-4">
+  <div class="text-xs text-gray-400 mb-2">TELEMETRY FUSION</div>
+  <div class="grid grid-cols-2 gap-y-2 text-sm font-mono">
+    <div>LAT: <span id="gps_lat" class="text-cyan-400">--</span></div>
+    <div>LON: <span id="gps_lon" class="text-cyan-400">--</span></div>
+    <div>SPD: <span id="gps_spd" class="text-cyan-400">--</span> <span class="text-xs text-gray-500">km/h</span></div>
+    <div>SAT: <span id="gps_sats" class="text-yellow-400">--</span></div>
+    
+    <div class="col-span-2 border-t border-gray-700 mt-2 pt-2">
+      IMU VEL: <span id="imu_vx" class="text-green-400">0.00</span> <span class="text-xs text-gray-500">m/s</span>
+    </div>
+  </div>
+</div>
+
+<script src="static/get_elements.js"></script>
+<script src="static/dashboard.js"></script>
+<script src="static/video_logic.js"></script>
+
+<script>
+/* ================= WEBRTC ================= */
+/*async function startStream(videoId,path){
+  const v=document.getElementById(videoId);
+  const pc=new RTCPeerConnection();
+  pc.ontrack=e=>{v.srcObject=e.streams[0];v.play().catch(()=>{});}
+  pc.addTransceiver("video",{direction:"recvonly"});
+  const offer=await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  const res=await fetch(`http://${location.hostname}:8889/${path}/whep`,
+    {method:"POST",body:offer.sdp,headers:{"Content-Type":"application/sdp"}});
+  if(res.status!==201)return;
+  const ans=await res.text();
+  await pc.setRemoteDescription({type:"answer",sdp:ans});
+}
+window.onload=()=>{
+  startStream("video-cam1","cam1");
+  startStream("video-cam2","cam2");
+  startStream("video-cam3","cam3");
+  startStream("video-cam4","cam4");
+};
+</script>
+
+</body>
+</html>*/
+<script>
+/* ================= WEBRTC STREAMING ================= */
+async function startStream(videoId,path){
+  const v=document.getElementById(videoId);
+  const pc=new RTCPeerConnection();
+  pc.ontrack=e=>{v.srcObject=e.streams[0];v.play().catch(()=>{});}
+  pc.addTransceiver("video",{direction:"recvonly"});
+  const offer=await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  
+  // Connect to MediaMTX
+  try {
+      const res=await fetch(`http://${location.hostname}:8889/${path}/whep`,
+        {method:"POST",body:offer.sdp,headers:{"Content-Type":"application/sdp"}});
+      if(res.status===201) {
+          const ans=await res.text();
+          await pc.setRemoteDescription({type:"answer",sdp:ans});
+      }
+  } catch(e) { console.log("Stream Error:", e); }
+}
+
+window.onload=()=>{
+  startStream("video-cam1","cam1");
+  startStream("video-cam2","cam2");
+  startStream("video-cam3","cam3");
+  startStream("video-cam4","cam4");
+};
+
+/* ================= TELEMETRY & COMMANDS ================= */
+// Connect to the same WebSocket server the laptop uses
+const ws = new WebSocket("ws://" + location.host + "/ws/dashboard_client");
+
+ws.onopen = () => {
+    console.log("✅ Dashboard WebSocket Connected");
+    document.getElementById("status-text").innerText = "ONLINE";
+    document.getElementById("status-light").classList.remove("bg-red-500");
+    document.getElementById("status-light").classList.add("bg-green-500");
+};
+
+ws.onmessage = (event) => {
+    // 1. Parse the incoming JSON
+    const msg = JSON.parse(event.data);
+
+    // --- DEBUG: Uncomment this line to see EVERY message in Console (F12) ---
+    // console.log("RX:", msg); 
+
+    // 2. Handle Gamepad/Drive Data
+    if (msg.topic === "drive_data") {
+        // Log it to console to prove it's arriving
+        // console.log("Driving:", msg.payload);
+
+        // Extract Values safely
+        let v = 0.0;
+        let w = 0.0;
+
+        // Check if payload exists to prevent crashes
+        if (msg.payload) {
+            v = parseFloat(msg.payload.v);
+            w = parseFloat(msg.payload.w);
+        }
+
+        // Update the HTML Widget
+        const elV = document.getElementById("val-v");
+        const elW = document.getElementById("val-w");
+        
+        if(elV) elV.innerText = v.toFixed(2);
+        if(elW) elW.innerText = w.toFixed(2);
+    }
+
+    // 3. Handle Other Topics (GPS, etc.)
+    if (msg.topic === "gps") {
+        if (msg.payload) {
+            const data = msg.payload;
+            
+            // Standard GPS Fields
+            if(document.getElementById("gps_lat")) 
+                document.getElementById("gps_lat").innerText = data.lat.toFixed(6);
+            
+            if(document.getElementById("gps_lon")) 
+                document.getElementById("gps_lon").innerText = data.lon.toFixed(6);
+            
+            if(document.getElementById("gps_spd")) 
+                document.getElementById("gps_spd").innerText = data.speed.toFixed(1);
+            
+            if(document.getElementById("gps_sats")) 
+                document.getElementById("gps_sats").innerText = data.sats;
+
+            // --- NEW: IMU Velocity Field ---
+            // This reads the 'vx' calculated by your Jetson script
+            if(document.getElementById("imu_vx")) 
+                document.getElementById("imu_vx").innerText = data.vx.toFixed(2);
+        }
+        // ... existing GPS logic if you have it ...
+    }
+};
+
+</script>
+

@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EXTRA TERRESTRIAL // MISSION CONTROL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root { 
+            --bg: #030406; 
+            --panel: #0d1117; 
+            --accent: #00f2ff; 
+            --accent-glow: rgba(0, 242, 255, 0.4);
+            --text: #e6edf3; 
+            --dim: #8b949e; 
+            --border: #30363d;
+            --danger: #f85149; 
+            --success: #238636;
+            --warning: #d29922;
+            --terminal: #0a0c10;
+        }
+
+        * { box-sizing: border-box; }
+        
+        body { 
+            background: var(--bg); 
+            color: var(--text); 
+            font-family: 'JetBrains Mono', monospace; 
+            margin: 0; 
+            padding: 10px;
+            height: 100vh; 
+            overflow: hidden; 
+            display: flex; 
+            flex-direction: column;
+            background-image: 
+                radial-gradient(circle at 2px 2px, #161b22 1px, transparent 0);
+            background-size: 40px 40px;
+        }
+
+        /* Scanline Overlay */
+        body::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 200;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+
+        header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            border-bottom: 1px solid var(--border); 
+            padding: 8px 15px; 
+            margin-bottom: 12px;
+            background: var(--panel);
+        }
+
+        .logo { font-family: 'Orbitron'; font-size: 18px; letter-spacing: 2px; font-weight: 700; }
+        .logo span { color: var(--accent); text-shadow: 0 0 10px var(--accent-glow); }
+
+        .sys-info { display: flex; gap: 20px; align-items: center; }
+        .clock { color: var(--dim); font-size: 12px; }
+
+        .grid { 
+            display: grid; 
+            grid-template-columns: 360px 1fr 300px; 
+            grid-template-rows: 1fr 240px;
+            gap: 12px; 
+            height: calc(100% - 70px);
+        }
+
+        .module { 
+            background: var(--panel); 
+            border: 1px solid var(--border);
+            position: relative; 
+            display: flex; 
+            flex-direction: column; 
+            padding: 15px;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.5);
+        }
+
+        /* Decorative Corners */
+        .module::after {
+            content: ""; position: absolute; bottom: -1px; right: -1px;
+            width: 10px; height: 10px; border-bottom: 2px solid var(--accent); border-right: 2px solid var(--accent);
+        }
+        .module::before {
+            content: ""; position: absolute; top: -1px; left: -1px;
+            width: 10px; height: 10px; border-top: 2px solid var(--accent); border-left: 2px solid var(--accent);
+        }
+
+        .m-title { 
+            font-size: 10px; 
+            color: var(--dim); 
+            text-transform: uppercase; 
+            margin-bottom: 15px; 
+            border-bottom: 1px solid var(--border); 
+            padding-bottom: 5px;
+            letter-spacing: 2px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .data-row { 
+            display: flex; 
+            justify-content: space-between; 
+            margin-bottom: 10px; 
+            align-items: baseline; 
+            padding: 4px 8px;
+            background: rgba(255,255,255,0.02);
+            border-radius: 2px;
+        }
+        .label { font-size: 10px; color: var(--dim); font-weight: bold; }
+        .value { font-size: 16px; font-weight: bold; color: #fff; }
+        .unit { font-size: 9px; color: var(--accent); margin-left: 4px; }
+
+        /* Spectral Canvas */
+        #chart-wrap { flex-grow: 1; position: relative; background: #000; margin-top: 10px; overflow: hidden; }
+        canvas { width: 100%; height: 100%; display: block; }
+
+        /* Action Buttons */
+        .btn-action { 
+            background: rgba(248,81,73,0.05); 
+            border: 1px solid var(--danger); 
+            color: var(--danger);
+            padding: 6px 16px; 
+            font-family: 'Orbitron'; 
+            cursor: pointer; 
+            transition: 0.2s;
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+        .btn-action:hover { background: var(--danger); color: #fff; box-shadow: 0 0 12px var(--danger); }
+
+        .status-pill { padding: 4px 10px; border-radius: 2px; font-size: 10px; font-weight: bold; font-family: 'Orbitron'; }
+        .offline { color: var(--danger); border: 1px solid var(--danger); animation: pulse-red 2s infinite; }
+        .online { color: var(--success); border: 1px solid var(--success); }
+
+        @keyframes pulse-red { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        /* Terminal Style Logs */
+        #terminal {
+            background: var(--terminal);
+            font-size: 10px;
+            color: var(--success);
+            padding: 10px;
+            overflow-y: auto;
+            flex-grow: 1;
+            border: 1px solid #1a1f26;
+            scrollbar-width: thin;
+        }
+        .log-entry { margin-bottom: 4px; border-left: 2px solid var(--success); padding-left: 6px; }
+        .log-ts { color: var(--dim); margin-right: 8px; }
+
+        /* Volatiles Meters */
+        .meter-container { height: 4px; background: #1a1f26; margin-top: 4px; width: 100%; border-radius: 2px; overflow: hidden; }
+        .meter-bar { height: 100%; background: var(--accent); transition: width 0.3s ease; }
+
+        #peak-list div {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding: 4px 0;
+        }
+
+        .hazard-val { color: var(--warning); }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo">EXTRA<span>TERRESTRIAL</span>.OS v4.2</div>
+    <div class="sys-info">
+        <div class="clock" id="mission-clock">T+ 00:00:00</div>
+        <div id="status" class="status-pill offline">LINK_ESTABLISHED</div>
+        <button class="btn-action" id="dump-btn" onclick="saveLog()">SYSTEM_LOG_DUMP</button>
+    </div>
+</header>
+
+<div class="grid">
+    <!-- Metrics Sidebar -->
+    <div class="module" style="grid-row: span 2;">
+        <div class="m-title"><span>Soil Analysis</span> <span>ID: KGP_RED_01</span></div>
+        <div class="data-row"><span class="label">NITROGEN (N)</span><span><span id="v-n" class="value">--</span><span class="unit">mg/kg</span></span></div>
+        <div class="data-row"><span class="label">PHOSPHORUS (P)</span><span><span id="v-p" class="value">--</span><span class="unit">mg/kg</span></span></div>
+        <div class="data-row"><span class="label">POTASSIUM (K)</span><span><span id="v-k" class="value">--</span><span class="unit">mg/kg</span></span></div>
+        <div class="data-row"><span class="label">PH LEVEL</span><span><span id="v-ph" class="value">--</span><span class="unit">pH</span></span></div>
+        <div class="data-row"><span class="label">MOISTURE</span><span><span id="v-soil" class="value">--</span><span class="unit">%</span></span></div>
+        
+        <div class="m-title" style="margin-top:25px;"><span>Atmospheric Matrix</span></div>
+        <div class="data-row"><span class="label">TEMPERATURE</span><span><span id="v-temp" class="value">--</span><span class="unit">°C</span></span></div>
+        <div class="data-row"><span class="label">PRESSURE</span><span><span id="v-press" class="value">--</span><span class="unit">hPa</span></span></div>
+        <div class="data-row"><span class="label">CO2 CONC.</span><span><span id="v-co2" class="value">--</span><span class="unit">ppm</span></span></div>
+
+        <div class="m-title" style="margin-top:25px;"><span>Navigational Hub</span></div>
+        <div class="data-row"><span class="label">LATITUDE</span><span id="v-lat" class="value">22.34601</span></div>
+        <div class="data-row"><span class="label">LONGITUDE</span><span id="v-lon" class="value">87.23197</span></div>
+        
+        <div style="flex-grow: 1;"></div>
+        <div style="font-size: 9px; color: var(--dim); text-align: center;">SIGNAL_STRENGTH: <span id="sig" style="color:var(--success)">■■■■□ 82%</span></div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="module">
+        <div class="m-title"><span>Spectral Analysis // Vis-NIR Profile</span> <span>REF: HEMATITE_GOETHITE</span></div>
+        <div id="chart-wrap"><canvas id="spectral-canvas"></canvas></div>
+    </div>
+
+    <!-- Right Top: Peaks -->
+    <div class="module">
+        <div class="m-title"><span>Detected Absorption Peaks</span></div>
+        <div id="peak-list" style="font-size: 11px; color: var(--accent); line-height: 1.4;">
+            <!-- Peaks injected here -->
+        </div>
+        <div style="margin-top: auto; font-size: 9px; color: var(--dim);">
+            Automated peak detection active. Matching against Indian Red Soil databases...
+        </div>
+    </div>
+
+    <!-- Bottom Center: Logs -->
+    <div class="module">
+        <div class="m-title"><span>Kernel Process Logs</span> <span>STDOUT</span></div>
+        <div id="terminal"></div>
+    </div>
+
+    <!-- Bottom Right: Volatiles -->
+    <div class="module">
+        <div class="m-title"><span>Hazardous Volatiles</span></div>
+        <div class="data-row" style="flex-direction: column; align-items: flex-start;">
+            <div style="display:flex; justify-content:space-between; width:100%">
+                <span class="label">METHANE (CH4)</span><span id="v-gch4" class="value hazard-val">--</span>
+            </div>
+            <div class="meter-container"><div id="m-ch4" class="meter-bar" style="width: 0%"></div></div>
+        </div>
+        <div class="data-row" style="flex-direction: column; align-items: flex-start;">
+            <div style="display:flex; justify-content:space-between; width:100%">
+                <span class="label">CARBON MONOXIDE</span><span id="v-gco" class="value">--</span>
+            </div>
+            <div class="meter-container"><div id="m-co" class="meter-bar" style="width: 0%"></div></div>
+        </div>
+        <div class="data-row" style="flex-direction: column; align-items: flex-start;">
+            <div style="display:flex; justify-content:space-between; width:100%">
+                <span class="label">ETHANOL/ALC</span><span id="v-geth" class="value">--</span>
+            </div>
+            <div class="meter-container"><div id="m-eth" class="meter-bar" style="width: 0%"></div></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    /**
+     * CONFIG & STATE
+     */
+    const MISSION_START = Date.now();
+    const cvs = document.getElementById("spectral-canvas");
+    const ctx = cvs.getContext("2d");
+    const terminal = document.getElementById("terminal");
+    
+    const fallbacks = {
+        npk_n: 24, npk_p: 12, npk_k: 145, ph_val: 6.2, soil_val: 12,
+        temp: 32.4, pressure: 1011.0, co2_val: 418, gas_ch4: 1.88, gas_co: 0.12, gas_eth: 0.04
+    };
+
+    let peaks = [
+        {nm: 450, val: 180, label: 'Fe3+'},
+        {nm: 520, val: 195, label: 'Goethite'},
+        {nm: 635, val: 210, label: 'Hematite'},
+        {nm: 880, val: 230, label: 'Clay OH'}
+    ];
+
+    /**
+     * CORE FUNCTIONS
+     */
+
+    function resize() {
+        const dpr = window.devicePixelRatio || 1;
+        const rect = cvs.parentElement.getBoundingClientRect();
+        cvs.width = rect.width * dpr;
+        cvs.height = rect.height * dpr;
+        ctx.scale(dpr, dpr);
+        cvs.style.width = rect.width + 'px';
+        cvs.style.height = rect.height + 'px';
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    function jitter(base, thresh) {
+        return (base + (Math.random() * thresh * 2 - thresh));
+    }
+
+    function addLog(msg, type = "success") {
+        const div = document.createElement("div");
+        div.className = "log-entry";
+        const ts = new Date().toLocaleTimeString('en-GB', { hour12: false });
+        div.innerHTML = `<span class="log-ts">[${ts}]</span> ${msg}`;
+        terminal.prepend(div);
+        if (terminal.childNodes.length > 50) terminal.lastChild.remove();
+    }
+
+    function updateClock() {
+        const diff = Math.floor((Date.now() - MISSION_START) / 1000);
+        const h = String(Math.floor(diff / 3600)).padStart(2, '0');
+        const m = String(Math.floor((diff % 3600) / 60)).padStart(2, '0');
+        const s = String(diff % 60).padStart(2, '0');
+        document.getElementById("mission-clock").innerText = `T+ ${h}:${m}:${s}`;
+    }
+
+    /**
+     * VISUALIZATION: Spectral Curve
+     */
+    function drawSpectrum() {
+        const w = cvs.width / (window.devicePixelRatio || 1);
+        const h = cvs.height / (window.devicePixelRatio || 1);
+        const padding = 30;
+        
+        ctx.clearRect(0, 0, w, h);
+
+        // Grid Lines
+        ctx.strokeStyle = "rgba(48, 54, 61, 0.5)";
+        ctx.lineWidth = 1;
+        for(let i=1; i<5; i++) {
+            let y = padding + (i * (h - 2*padding)/5);
+            ctx.beginPath(); ctx.moveTo(padding, y); ctx.lineTo(w-padding, y); ctx.stroke();
+        }
+
+        // Generate data points
+        const points = [];
+        for(let i=0; i <= 100; i++) {
+            let x = padding + (i/100) * (w - 2*padding);
+            // Simulate typical red soil iron oxide curve (rising toward red/NIR)
+            let base = 40 + (Math.pow(i/100, 1.8) * 160);
+            // Add some specific absorption "dips"
+            if (i > 40 && i < 50) base -= 15; // 520nm approx
+            if (i > 80 && i < 90) base -= 20; // 900nm approx
+            
+            let y = (h - padding) - (jitter(base, 2)/255) * (h - 2*padding);
+            points.push({x, y});
+        }
+
+        // Gradient
+        const grad = ctx.createLinearGradient(padding, 0, w - padding, 0);
+        grad.addColorStop(0, "#4B0082"); // UV
+        grad.addColorStop(0.2, "#0000FF"); // Blue
+        grad.addColorStop(0.4, "#00FF00"); // Green
+        grad.addColorStop(0.6, "#FFFF00"); // Yellow
+        grad.addColorStop(0.8, "#FF7F00"); // Orange
+        grad.addColorStop(1, "#FF0000"); // Red
+
+        // Fill
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, h - padding);
+        points.forEach(p => ctx.lineTo(p.x, p.y));
+        ctx.lineTo(points[points.length-1].x, h - padding);
+        ctx.fillStyle = grad;
+        ctx.globalAlpha = 0.15;
+        ctx.fill();
+
+        // Stroke
+        ctx.globalAlpha = 1.0;
+        ctx.beginPath();
+        points.forEach((p, i) => {
+            if(i === 0) ctx.moveTo(p.x, p.y);
+            else ctx.lineTo(p.x, p.y);
+        });
+        ctx.strokeStyle = varColor('--accent');
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Label Peaks
+        ctx.font = "9px JetBrains Mono";
+        ctx.fillStyle = varColor('--dim');
+        peaks.forEach((p, i) => {
+            let relX = (p.nm - 400) / (900 - 400); // map 400-900nm
+            let x = padding + relX * (w - 2*padding);
+            if (x < padding || x > w - padding) return;
+            
+            ctx.beginPath();
+            ctx.setLineDash([2, 2]);
+            ctx.moveTo(x, padding);
+            ctx.lineTo(x, h - padding);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            ctx.save();
+            ctx.translate(x + 5, padding + 10 + (i * 15));
+            ctx.fillStyle = varColor('--accent');
+            ctx.fillText(`${p.label} (${p.nm}nm)`, 0, 0);
+            ctx.restore();
+        });
+    }
+
+    function varColor(name) {
+        return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    }
+
+    /**
+     * TELEMETRY SIMULATOR
+     */
+    function updateTelemetry() {
+        const updateVal = (id, key, thresh, dec = 0) => {
+            const el = document.getElementById(id);
+            if(!el) return;
+            const val = jitter(fallbacks[key], thresh);
+            el.innerText = val.toFixed(dec);
+            return val;
+        };
+
+        updateVal("v-n", "npk_n", 0.8);
+        updateVal("v-p", "npk_p", 0.4);
+        updateVal("v-k", "npk_k", 2);
+        updateVal("v-ph", "ph_val", 0.05, 1);
+        updateVal("v-soil", "soil_val", 0.2, 1);
+        
+        updateVal("v-temp", "temp", 0.1, 1);
+        updateVal("v-press", "pressure", 0.5, 1);
+        updateVal("v-co2", "co2_val", 1);
+
+        const ch4 = updateVal("v-gch4", "gas_ch4", 0.02, 2);
+        const co = updateVal("v-gco", "gas_co", 0.01, 2);
+        const eth = updateVal("v-geth", "gas_eth", 0.005, 2);
+
+        // Update Meters
+        document.getElementById("m-ch4").style.width = Math.min(100, (ch4/5)*100) + "%";
+        document.getElementById("m-co").style.width = Math.min(100, (co/2)*100) + "%";
+        document.getElementById("m-eth").style.width = Math.min(100, (eth/1)*100) + "%";
+
+        // Update Peak List (UI only)
+        const pList = document.getElementById("peak-list");
+        pList.innerHTML = peaks.map(p => `
+            <div>
+                <span>λ: ${p.nm}nm [${p.label}]</span>
+                <span style="color:#fff">${Math.round(jitter(p.val, 1.5))} rLU</span>
+            </div>
+        `).join('');
+
+        if (Math.random() > 0.95) addLog("Data packet received: topic=science_payload", "success");
+    }
+
+    async function saveLog() {
+        const b = document.getElementById("dump-btn");
+        b.innerText = "DUMPING_CORE...";
+        b.style.borderColor = "var(--success)";
+        b.style.color = "var(--success)";
+        
+        addLog("Initiating full system dump...", "warning");
+        await new Promise(r => setTimeout(r, 800));
+        addLog("Science DB synced to ground control.", "success");
+        addLog("Spectrometer calibration logs exported.", "success");
+        
+        b.innerText = "DUMP_COMPLETE";
+        setTimeout(() => {
+            b.innerText = "SYSTEM_LOG_DUMP";
+            b.style.borderColor = "var(--danger)";
+            b.style.color = "var(--danger)";
+        }, 2000);
+    }
+
+    /**
+     * INITIALIZATION
+     */
+    window.onload = () => {
+        addLog("EXTRA_TERRESTRIAL.OS Boot Sequence Initiated...", "success");
+        addLog("Checking Link status... established via INSAT-4B.", "success");
+        addLog("Soil sensor array: ONLINE", "success");
+        addLog("Atmosphere probe: ONLINE", "success");
+        
+        document.getElementById("status").className = "status-pill online";
+        
+        // Start loops
+        setInterval(updateClock, 1000);
+        setInterval(updateTelemetry, 2000);
+        setInterval(drawSpectrum, 100);
+
+        // Simulated event
+        setTimeout(() => {
+            addLog("ALERT: Elevated Methane levels detected in Sector 7G", "danger");
+        }, 5000);
+    };
+
+</script>
+</body>
+</html>

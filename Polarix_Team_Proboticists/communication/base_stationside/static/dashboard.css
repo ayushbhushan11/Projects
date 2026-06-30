@@ -1,0 +1,80 @@
+body {
+    font-family: "Inter", sans-serif;
+    background-color: #111827; /* Tailwind gray-900 */
+    color: #e5e7eb; /* Tailwind gray-200 */
+}
+
+.widget {
+    background-color: #1f2937; /* Tailwind gray-800 */
+    border: 1px solid #374151; /* Tailwind gray-700 */
+    border-radius: 0.75rem; /* rounded-xl */
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+.widget-title {
+    color: #9ca3af; /* Tailwind gray-400 */
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Custom styles for the battery indicator */
+#battery-level {
+    transition: width 0.5s ease-in-out, background-color 0.5s ease-in-out;
+}
+
+/* Custom styles for the RSSI bars */
+.rssi-bar {
+    background-color: #4b5563; /* Tailwind gray-600 */
+    transition: background-color 0.5s ease-in-out;
+}
+
+.rssi-bar.active {
+    background-color: #22c55e; /* Tailwind green-500 */
+}
+
+.camera-feed {
+    object-fit: cover;
+    width: 100%;
+    height: 100%;
+    background-color: #000; /* Add a black background for loading */
+}
+
+/* New Camera Layout Styles */
+#camera-container.single-view {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    grid-auto-rows: min-content;
+    gap: 0.75rem;
+}
+
+#camera-container.single-view .camera-item {
+    cursor: pointer;
+    aspect-ratio: 4 / 3;
+    order: 2;
+    border: 2px solid transparent;
+    transition: border-color 0.3s ease;
+}
+
+#camera-container.single-view .camera-item:hover {
+    border-color: #3b82f6; /* Tailwind blue-500 */
+}
+
+#camera-container.single-view .camera-item.active {
+    grid-column: 1 / -1; /* Span full width */
+    order: 1;
+    aspect-ratio: 16 / 9;
+    cursor: default;
+    border-color: #374151;
+}
+
+#camera-container.grid-view {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+}
+
+#camera-container.grid-view .camera-item {
+    aspect-ratio: 16 / 9;
+    order: initial !important; /* Reset order */
+}

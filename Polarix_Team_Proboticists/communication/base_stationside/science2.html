@@ -1,0 +1,128 @@
+s<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Rover Science</title>
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;700&family=Roboto+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg:#0b0c10; --card:#1f2833; --accent:#66fcf1; --text:#c5c6c7; --red:#ff4b5c; }
+        body { background:var(--bg); color:var(--text); font-family:'Chakra Petch'; margin:0; padding:20px; height:100vh; display:flex; flex-direction:column; box-sizing:border-box; }
+        header { display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #45a29e; padding-bottom:10px; margin-bottom:15px; }
+        h1 { margin:0; font-size:24px; color:#fff; }
+        .log-btn { background:var(--red); color:#fff; border:none; padding:8px 16px; font-weight:bold; cursor:pointer; border-radius:4px; }
+        .grid { display:grid; grid-template-rows:1fr 1fr; gap:20px; flex-grow:1; }
+        .top { display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px; }
+        .card { background:var(--card); border:1px solid #45a29e; border-radius:8px; padding:15px; display:flex; flex-direction:column; }
+        .row { display:flex; justify-content:space-between; font-family:'Roboto Mono'; font-size:12px; margin-bottom:6px; }
+        .val { color:#fff; font-weight:bold; }
+        canvas { width:100%; height:100%; background:#000; border:1px solid #333; }
+        .peaks { font-size:11px; color:#aaa; overflow-y:auto; height:100%; font-family:'Roboto Mono'; }
+        .p-item { display:flex; justify-content:space-between; border-bottom:1px solid #333; padding:2px 0; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Science <span style="font-size:12px;color:#66fcf1">// FUSION</span></h1>
+    <button class="log-btn" onclick="saveLog()">💾 LOG DATA</button>
+    <div style="color:var(--red); font-weight:bold;" id="status">DISCONNECTED</div>
+</header>
+
+<div class="grid">
+    <div class="top">
+        <div class="card">
+            <h2 style="color:var(--accent);border-bottom:1px solid #444;margin-bottom:10px;">Soil & NPK</h2>
+            <div class="row"><span>NITROGEN</span><span id="v-n" class="val">0</span></div>
+            <div class="row"><span>PHOSPHORUS</span><span id="v-p" class="val">0</span></div>
+            <div class="row"><span>POTASSIUM</span><span id="v-k" class="val">0</span></div>
+            <div class="row"><span>pH</span><span id="v-ph" class="val">0.0</span></div>
+            <div class="row"><span>MOISTURE</span><span id="v-soil" class="val">0</span>%</div>
+        </div>
+        <div class="card">
+            <h2 style="color:var(--accent);border-bottom:1px solid #444;margin-bottom:10px;">Atmosphere</h2>
+            <div class="row"><span>TEMP</span><span id="v-temp" class="val">0.0</span>°C</div>
+            <div class="row"><span>PRESSURE</span><span id="v-press" class="val">0</span>Pa</div>
+            <div class="row"><span>CO2</span><span id="v-co2" class="val">0</span>ppm</div>
+            <div class="row"><span>Alcohol</span><span id="v-geth" class="val">0.0</span></div>
+        </div>
+        <div class="card">
+            <h2 style="color:var(--accent);border-bottom:1px solid #444;margin-bottom:10px;">GPS & Gases</h2>
+            <div class="row"><span>LAT</span><span id="v-lat" class="val">0.0000</span></div>
+            <div class="row"><span>LON</span><span id="v-lon" class="val">0.0000</span></div>
+            <div class="row"><span>CO Gas</span><span id="v-gco" class="val">0.0</span></div>
+            <div class="row"><span>Methane</span><span id="v-gch4" class="val">0.0</span></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2 style="color:var(--accent);border-bottom:1px solid #444;margin-bottom:10px;">Spectral Analysis</h2>
+        <div style="display:flex; height:100%;">
+            <canvas id="gr"></canvas>
+            <div style="width:160px; padding-left:10px; border-left:1px solid #333;">
+                <div style="font-size:10px;color:#666;margin-bottom:5px;">TOP PEAKS</div>
+                <div id="plist" class="peaks"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const cvs = document.getElementById("gr");
+    const ctx = cvs.getContext("2d");
+    function rsz() { cvs.width = cvs.clientWidth; cvs.height = cvs.clientHeight; }
+    window.onresize = rsz; rsz();
+
+    // --- PATCH: RAINBOW GRAPH ---
+    function draw(data) {
+        const w=cvs.width, h=cvs.height, p=30;
+        ctx.clearRect(0,0,w,h);
+        const g = ctx.createLinearGradient(p,0,w,0);
+        g.addColorStop(0,"violet"); g.addColorStop(0.2,"blue"); g.addColorStop(0.4,"cyan");
+        g.addColorStop(0.6,"green"); g.addColorStop(0.8,"orange"); g.addColorStop(1,"red");
+        ctx.beginPath(); ctx.moveTo(p,h-p);
+        data.forEach((v,i)=>{ ctx.lineTo(p+(i/data.length)*(w-p), (h-p)-(v/255)*(h-2*p)); });
+        ctx.lineTo(w,h-p); ctx.closePath();
+        ctx.fillStyle=g; ctx.fill(); ctx.stroke();
+        ctx.fillStyle="#888"; ctx.font="10px Roboto Mono";
+        ctx.fillText("400nm",p,h-10); ctx.fillText("550nm",w/2,h-10); ctx.fillText("700nm",w-40,h-10);
+    }
+
+    let state = { lat:0, lon:0, peaks:[], spectrum:[], npk_n:0, npk_p:0, npk_k:0, ph_val:0, soil_val:0, temp:0, pressure:0, co2_val:0, gas_co:0, gas_ch4:0, gas_eth:0 };
+
+    const ws = new WebSocket("ws://"+location.host+"/ws/dashboard");
+    ws.onopen=()=>{document.getElementById("status").innerText="ONLINE"; document.getElementById("status").classList.add("online");};
+    
+    ws.onmessage = e => {
+        const m = JSON.parse(e.data);
+        if(m.topic==="gps") { state.lat=m.lat; state.lon=m.lon; document.getElementById("v-lat").innerText=m.lat.toFixed(5); document.getElementById("v-lon").innerText=m.lon.toFixed(5); }
+        if(m.topic==="science") {
+            Object.assign(state, m); // CAPTURE DATA FOR LOGGING
+            document.getElementById("v-n").innerText=m.npk_n;
+            document.getElementById("v-p").innerText=m.npk_p;
+            document.getElementById("v-k").innerText=m.npk_k;
+            document.getElementById("v-ph").innerText=m.ph_val;
+            document.getElementById("v-soil").innerText=m.soil_val;
+            document.getElementById("v-temp").innerText=m.temp;
+            document.getElementById("v-press").innerText=m.pressure;
+            document.getElementById("v-co2").innerText=m.co2_val;
+            document.getElementById("v-gco").innerText=m.gas_co;
+            document.getElementById("v-gch4").innerText=m.gas_ch4;
+            document.getElementById("v-geth").innerText=m.gas_eth;
+        }
+        if(m.topic==="spectral_data") {
+            draw(m.data); state.spectrum=m.data; state.peaks=m.peaks;
+            const c=document.getElementById("plist"); c.innerHTML="";
+            m.peaks.slice(0,10).forEach(p=>{ c.innerHTML+=`<div class='p-item'><span style='color:#66fcf1'>${p.nm}nm</span><span>${p.val}</span></div>`; });
+        }
+    };
+
+    // --- PATCH: LOGGING ---
+    async function saveLog() {
+        const b = document.querySelector(".log-btn"); b.innerText="SAVING...";
+        const load = { timestamp:new Date().toISOString(), ...state, peaks:JSON.stringify(state.peaks).replace(/,/g,';'), spectrum:"Raw" };
+        await fetch("/log_data", { method:"POST", headers:{'Content-Type':'application/json'}, body:JSON.stringify(load) });
+        b.innerText="✅ SAVED"; setTimeout(()=>b.innerText="💾 LOG DATA",2000);
+    }
+</script>
+</body>
+</html>

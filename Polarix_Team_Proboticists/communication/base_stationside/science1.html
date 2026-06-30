@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rover Science Payload</title>
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* --- THEME --- */
+        :root {
+            --bg-color: #0b0c10;
+            --card-bg: #1f2833;
+            --accent: #66fcf1;
+            --text-main: #c5c6c7;
+            --danger: #ff4b5c;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Chakra Petch', sans-serif; /* Engineering font */
+            margin: 0; padding: 20px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+
+        /* --- HEADER --- */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #45a29e;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+            flex-shrink: 0;
+        }
+        h1 { margin: 0; font-size: 24px; text-transform: uppercase; letter-spacing: 2px; color: #fff; }
+        .status { font-family: 'Roboto Mono', monospace; font-weight: bold; color: var(--danger); }
+        .status.online { color: var(--accent); }
+
+        /* --- MAIN LAYOUT (Top: Data, Bottom: Graphs) --- */
+        .main-container {
+            display: grid;
+            grid-template-rows: 1fr 1fr; /* Split screen 50/50 vertically */
+            gap: 20px;
+            flex-grow: 1;
+            overflow: hidden; /* Prevent scrolling if possible */
+        }
+
+        /* --- TOP ROW: BARS & PIE --- */
+        .top-row {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr; /* Left side wider */
+            gap: 20px;
+            min-height: 0; /* Allow shrinking */
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid #45a29e;
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        .card h2 { 
+            margin: 0 0 15px 0; 
+            font-size: 14px; 
+            color: var(--accent); 
+            text-transform: uppercase; 
+            border-bottom: 1px solid rgba(255,255,255,0.1); 
+            padding-bottom: 5px;
+        }
+
+        /* --- GAS BARS --- */
+        .gas-list { overflow-y: auto; flex-grow: 1; }
+        .gas-row { display: flex; align-items: center; margin-bottom: 10px; font-family: 'Roboto Mono', monospace; font-size: 12px; }
+        .gas-name { width: 50px; font-weight: bold; }
+        .bar-track { flex-grow: 1; height: 10px; background: #0b0c10; margin: 0 10px; border: 1px solid #333; }
+        .bar-fill { height: 100%; width: 0%; transition: width 0.3s; }
+        .gas-val { width: 50px; text-align: right; color: #fff; }
+
+        /* --- PIE CHART (FIXED SIZE) --- */
+        .pie-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-grow: 1;
+            position: relative;
+        }
+        .pie-container {
+            /* Force circular shape */
+            width: 180px; 
+            height: 180px;
+            flex-shrink: 0; /* PREVENT DISTORTION */
+            border-radius: 50%;
+            background: conic-gradient(#333 0% 100%);
+            border: 4px solid #45a29e;
+            box-shadow: 0 0 15px rgba(69, 162, 158, 0.2);
+            position: relative;
+        }
+        .pie-hole {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 120px; height: 120px;
+            background: var(--card-bg);
+            border-radius: 50%;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+        }
+
+        /* --- BOTTOM ROW: GRAPHS --- */
+        .graph-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr; /* 3 Graphs side by side */
+            gap: 20px;
+        }
+        .graph-card {
+            background: #0b0c10; /* Darker for graphs */
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+        }
+        .graph-title { font-size: 12px; color: #888; margin-bottom: 5px; text-align: center; }
+        
+        /* SVG Graph Styling */
+        svg {
+            width: 100%;
+            height: 100%;
+            border-left: 1px solid #333;
+            border-bottom: 1px solid #333;
+        }
+        polyline {
+            fill: none;
+            stroke-width: 2;
+            vector-effect: non-scaling-stroke;
+        }
+
+        /* Helpers */
+        .val-big { font-size: 20px; font-weight: bold; color: #fff; }
+        .unit { font-size: 10px; color: #888; }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Science Payload <span style="font-size:12px; color:#66fcf1;">// MICS5524</span></h1>
+        <div id="status" class="status">DISCONNECTED</div>
+    </header>
+
+    <div class="main-container">
+        
+        <div class="top-row">
+            
+            <div class="card">
+                <h2>Spectrometry Analysis</h2>
+                <div class="gas-list" id="bars-container"></div>
+            </div>
+
+            <div class="card">
+                <h2>Atmospheric Mix</h2>
+                <div class="pie-wrapper">
+                    <div class="pie-container" id="pieChart">
+                        <div class="pie-hole">
+                            <span class="unit">TOTAL VOC</span>
+                            <span id="total-ppm" class="val-big">0.0</span>
+                            <span class="unit">PPM</span>
+                        </div>
+                    </div>
+                </div>
+                <div style="position:absolute; bottom:15px; right:15px; text-align:right;">
+                    <div style="font-size:12px; color:#45a29e;">SOIL MOISTURE</div>
+                    <span id="soil-txt" style="font-size:24px; font-weight:bold; color:#fff;">0</span>%
+                </div>
+            </div>
+        </div>
+
+        <div class="graph-row">
+            <div class="graph-card">
+                <div class="graph-title">CARBON MONOXIDE (CO)</div>
+                <svg id="graph-co" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <polyline points="" stroke="#D7263D" />
+                </svg>
+            </div>
+            <div class="graph-card">
+                <div class="graph-title">METHANE (CH4)</div>
+                <svg id="graph-ch4" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <polyline points="" stroke="#1B9AAA" />
+                </svg>
+            </div>
+            <div class="graph-card">
+                <div class="graph-title">SOIL MOISTURE (%)</div>
+                <svg id="graph-soil" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <polyline points="" stroke="#2E933C" />
+                </svg>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- CONFIG ---
+        const GASES = [
+            { id: 'co',  name: 'CO',      color: '#D7263D' },
+            { id: 'ch4', name: 'CH4',     color: '#1B9AAA' },
+            { id: 'eth', name: 'ETH',     color: '#2E933C' },
+            { id: 'h2',  name: 'H2',      color: '#F4A259' },
+            { id: 'nh3', name: 'NH3',     color: '#9B5DE5' },
+            { id: 'no2', name: 'NO2',     color: '#F9C74F' }
+        ];
+
+        // --- SETUP BARS ---
+        const barContainer = document.getElementById('bars-container');
+        GASES.forEach(gas => {
+            barContainer.innerHTML += `
+                <div class="gas-row">
+                    <div class="gas-name" style="color:${gas.color}">${gas.name}</div>
+                    <div class="bar-track">
+                        <div id="bar-${gas.id}" class="bar-fill" style="background:${gas.color}"></div>
+                    </div>
+                    <div id="val-${gas.id}" class="gas-val">0.0</div>
+                </div>`;
+        });
+
+        // --- GRAPHING ENGINE (Simple Array Buffer) ---
+        const HISTORY_LEN = 50; // Keep last 50 points
+        const graphs = {
+            'co':   { el: document.querySelector('#graph-co polyline'), data: new Array(HISTORY_LEN).fill(0) },
+            'ch4':  { el: document.querySelector('#graph-ch4 polyline'), data: new Array(HISTORY_LEN).fill(0) },
+            'soil': { el: document.querySelector('#graph-soil polyline'), data: new Array(HISTORY_LEN).fill(0) }
+        };
+
+        function updateGraph(key, newValue, maxScale) {
+            const g = graphs[key];
+            g.data.shift(); // Remove oldest
+            g.data.push(newValue); // Add new
+
+            // Convert data to SVG points string
+            // X goes from 0 to 100, Y goes from 100 (bottom) to 0 (top)
+            let points = g.data.map((val, index) => {
+                let x = (index / (HISTORY_LEN - 1)) * 100;
+                let y = 100 - ((val / maxScale) * 100);
+                if (y < 0) y = 0; if (y > 100) y = 100;
+                return `${x},${y}`;
+            }).join(' ');
+
+            g.el.setAttribute('points', points);
+        }
+
+        // --- WEBSOCKET ---
+        const ws = new WebSocket("ws://" + window.location.host + "/ws/dashboard");
+        const statusEl = document.getElementById("status");
+
+        ws.onopen = () => { statusEl.innerText = "LINK ESTABLISHED"; statusEl.classList.add("online"); };
+        ws.onclose = () => { statusEl.innerText = "LINK FAILED"; statusEl.classList.remove("online"); };
+
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.topic !== "science") return;
+
+                // 1. UPDATE BARS & PIE
+                let totalPPM = 0;
+                const values = [data.gas_co, data.gas_ch4, data.gas_c2h5oh, data.gas_h2, data.gas_nh3, data.gas_no2];
+                let gradientStr = "";
+                let startPct = 0;
+
+                GASES.forEach((gas, index) => {
+                    let val = values[index] || 0;
+                    totalPPM += val;
+                    document.getElementById(`val-${gas.id}`).innerText = val.toFixed(1);
+                    document.getElementById(`bar-${gas.id}`).style.width = Math.min((val/100)*100, 100) + "%";
+                });
+
+                if (totalPPM > 0) {
+                    GASES.forEach((gas, index) => {
+                        let val = values[index] || 0;
+                        let size = (val/totalPPM)*100;
+                        gradientStr += `${gas.color} ${startPct}% ${startPct+size}%, `;
+                        startPct += size;
+                    });
+                    gradientStr = gradientStr.slice(0, -2);
+                } else gradientStr = "#333 0% 100%";
+
+                document.getElementById("pieChart").style.background = `conic-gradient(${gradientStr})`;
+                document.getElementById("total-ppm").innerText = totalPPM.toFixed(1);
+
+                // 2. UPDATE SOIL
+                let soilPct = (data.soil_val / 1023) * 100;
+                document.getElementById("soil-txt").innerText = soilPct.toFixed(0);
+
+                // 3. UPDATE GRAPHS
+                updateGraph('co', data.gas_co, 50);   // Max scale 50ppm
+                updateGraph('ch4', data.gas_ch4, 50); // Max scale 50ppm
+                updateGraph('soil', soilPct, 100);    // Max scale 100%
+
+            } catch (e) { console.error(e); }
+        };
+    </script>
+</body>
+</html>
