@@ -1,7 +1,7 @@
 module PISO (input [0:3] A, input clk, input load, output out );
     wire [3:0] dff_out,mux_out;
 
-    DFF dff[3:0] (mux_out[3:0],clk,dff_out[3:0]);
+    DFF dff[3:0] (mux_out[3:0],{clk,clk,clk,clk},dff_out[3:0]);
     assign out=dff_out[3];
 
     MUX2to1 mux0 (1'b0,A[0],load,mux_out[0]);
